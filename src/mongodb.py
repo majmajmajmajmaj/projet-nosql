@@ -59,9 +59,10 @@ def getAllGenres():
 def getHighestRevenueMovie():
     collection = getCollection()
     pipeline = [
-        {"$match": {"Revenue (Millions)": {"$type": "double"}}},
+        {"$match": {"Revenue (Millions)": {"$type": "double"} }},
         {"$sort": {"Revenue (Millions)": -1}},
-        {"$limit": 1}
+        {"$limit": 1
+         }
     ]
     result = list(collection.aggregate(pipeline))
     return result[0] if result else None
@@ -73,5 +74,131 @@ def getDirectorsWithMoreThan5Movies():
         {"$group": {"_id": "$Director", "count": {"$sum": 1}}},
         {"$match": {"count": {"$gt": 5}}},
         {"$sort": {"count": -1}}
+    ]
+    return list(collection.aggregate(pipeline))
+
+
+# Question 8 
+
+def getGenreWithHighestAvgRevenue():
+    collection = getCollection()
+    pipeline = [
+        {"$match": {"Revenue (Millions)": {"$type": "double"}}},
+        {"$project": {
+            "genre": {"$split": ["$genre", ","]},
+            "Revenue (Millions)": 1
+        }},
+        {"$unwind": "$genre"},
+        {"$group": {
+            "_id": {"$trim": {"input": "$genre"}},
+            "avg_revenue": {"$avg": "$Revenue (Millions)"}
+        }},
+        {"$sort": {"avg_revenue": -1
+                   }},
+        {"$limit": 1}
+    ]
+    result = list(collection.aggregate(pipeline))
+    return result[0] if result else None
+
+#Question 9
+
+def getTop3RatedMoviesByDecade():
+    collection = getCollection()
+    pipeline = [
+        {"$match": {"rating": {"$exists": True, "$ne": "unrated"}, "year": {"$type": "int"}}},
+        {"$project": {
+            "title": 1,
+            "rating": 1,
+            "year": 1,
+            "decade": {"$subtract": ["$year", {"$mod": ["$year", 10]}]}
+        }},
+        {"$sort": {"decade": 1, "rating": -1}},
+        {"$group": {
+            "_id": "$decade",
+            "topMovies": {
+                "$push": {
+                    "title": "$title",
+                    "rating": "$rating",
+                    "year": "$year"
+                }
+            }
+        }},
+        {"$project": {
+            "decade": "$_id",
+            "topMovies": {"$slice": ["$topMovies", 3]},
+            "_id": 0
+        }},
+        {"$sort": {
+            "decade": 1
+            }
+            }
+    ]
+    return list(collection.aggregate(pipeline))
+
+
+# QUestion 10
+
+def getLongestMovieByGenre():
+    collection = getCollection()
+    pipeline = [
+        {"$match": {"Runtime (Minutes)": {"$type": "int"}}},
+        {"$project": {
+            "title": 1,
+            "Runtime (Minutes)": 1,
+            "genre": {"$split": ["$genre", ","]}
+        }},
+        {"$unwind": "$genre"},
+        {"$set": {"genre": {"$trim": {"input": "$genre"}}}},
+        {"$sort": {"Runtime (Minutes)": -1}},
+        {"$group": {
+            "_id": "$genre",
+            "title": {"$first": "$title"},
+            "runtime": {"$first": "$Runtime (Minutes)"}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    return list(collection.aggregate(pipeline))
+
+#Question 11
+
+def getHighRatedAndProfitableMovies():
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DB_NAME]
+    view = db["highRatedAndProfitableMovies"]
+    return list(view.find())
+
+#Question 12
+
+def getRuntimesAndRevenues():
+    collection = getCollection()
+    return list(collection.find(
+        {
+        "Runtime (Minutes)": {"$type": "int"},
+        "Revenue (Millions)": {"$type": "double"}
+    }, {
+        "Runtime (Minutes)": 1,
+        "Revenue (Millions)": 1,
+        "_id": 0
+    }))
+
+
+#question 13
+def getAverageRuntimeByDecade():
+    collection = getCollection()
+    pipeline = [
+        {"$match": {
+            "Runtime (Minutes)": {"$type": "int"},
+            "year": {"$type": "int"}
+        }},
+        {"$project": {
+            "decade": {"$subtract": ["$year", {"$mod": ["$year", 10]}]},
+            "Runtime (Minutes)": 1
+        }},
+        {"$group": 
+         {
+            "_id": "$decade",
+            "average_runtime": {"$avg": "$Runtime (Minutes)"}
+        }},
+        {"$sort": {"_id": 1}}
     ]
     return list(collection.aggregate(pipeline))
