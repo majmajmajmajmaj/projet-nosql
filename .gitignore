@@ -2,3 +2,6 @@ venv/
 __pycache__/
 *.pyc
 .env
+src/config.py
+rapport_projet.odt
+.~lock.rapport_projet.odt#
